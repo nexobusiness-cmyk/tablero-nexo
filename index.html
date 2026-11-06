@@ -353,6 +353,31 @@ tbody tr:hover{background:var(--surface-2)}
 .fcol .btn{padding:12px}
 .acc{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:8px;align-items:end;padding:12px;border-radius:12px;background:var(--surface-2)}
 @media (max-width:620px){.acc{grid-template-columns:1fr}}
+/* calendario */
+.cal-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.cal-bar h3{margin:0;font-family:var(--display);font-size:20px;min-width:150px;text-align:center}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.cal-h{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:center;padding:4px 0}
+.cal-d{min-height:100px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:5px;display:flex;flex-direction:column;gap:3px;cursor:pointer;min-width:0;overflow:hidden}
+.cal-d.out{background:transparent;border-color:transparent;cursor:default}
+.cal-d.dom{background:var(--surface-2)}
+.cal-d.libre{background:repeating-linear-gradient(135deg,var(--warn-bg),var(--warn-bg) 6px,var(--surface) 6px,var(--surface) 12px);border-color:var(--warn-line)}
+.cal-d.sel{outline:2px solid var(--fg);outline-offset:-1px}
+.cal-d .num{font-size:12.5px;font-weight:700;width:22px;height:22px;display:grid;place-items:center;border-radius:50%}
+.cal-d.hoy .num{background:var(--accent);color:var(--accent-ink)}
+.cal-c{font-size:11.5px;line-height:1.3;padding:2px 6px;border-radius:6px;background:color-mix(in srgb,var(--c,var(--accent)) 16%,var(--surface));border-left:3px solid var(--c,var(--accent));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.cal-c.u{font-weight:700;border-left-color:var(--bad)}
+.cal-c.ok{opacity:.55;text-decoration:line-through}
+.cal-c.ev{--c:var(--night);background:var(--night-bg);color:var(--night);cursor:default}
+.cal-c.lib{--c:var(--warn);background:var(--warn-bg);color:var(--warn);cursor:default}
+.cal-m{font-size:11px;color:var(--muted)}
+.cal-leg{display:flex;gap:12px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin:10px 0 14px}
+.cal-leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.cal-det li{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px;padding:7px 8px;border-radius:9px;background:var(--surface-2)}
+.cal-det li[data-caltask]{cursor:pointer}
+.cal-det h4{margin:10px 0 4px;font-size:12.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.lib-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;align-items:end}
+@media (max-width:700px){.cal-d{min-height:64px;padding:3px}.cal-c{font-size:10.5px;padding:1px 4px}.cal-bar h3{min-width:0}}
 </style>
 <script>
 window.__errs=[];
@@ -366,6 +391,7 @@ setTimeout(function(){ if(!window.__nexoOk){ var a=document.getElementById("app"
   <nav class="nav" id="nav" hidden>
     <a href="#hoy" data-v="hoy">Hoy</a>
     <a href="#agenda" data-v="agenda">Agenda</a>
+    <a href="#calendario" data-v="calendario">Calendario</a>
     <a href="#tablero" data-v="tablero">Tablero</a>
     <a href="#eventos" data-v="eventos">Eventos</a>
     <a href="#tiempos" data-v="tiempos">Tiempos</a>
@@ -406,7 +432,7 @@ const TIPOS = {capacitacion:"Capacitación", zoom:"Zoom", visita:"Visita", prese
 const DIAS = ["dom","lun","mar","mié","jue","vie","sáb"], DIAS_L = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
 const MESES = ["ene","feb","mar","abr","may","jun","jul","ago","set","oct","nov","dic"], MESES_L=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","setiembre","octubre","noviembre","diciembre"];
 
-const S = {auth:null, members:[], tasks:[], events:[], mat:{}, view:"hoy", f:{p:null,e:"all",q:""}, tr:"semana", soy:"", admin:false, veIds:[], notasIds:[], avisos:[], recs:[], agp:"", tg:{activo:false, yo:false}, tgCode:null, rp:"semana", rpp:"all", repUrl:"", usuario:"", skew:0, token:"", busy:false};
+const S = {auth:null, members:[], tasks:[], events:[], mat:{}, view:"hoy", f:{p:null,e:"all",q:""}, tr:"semana", soy:"", admin:false, veIds:[], notasIds:[], avisos:[], recs:[], agp:"", libres:[], cal:{mes:"", p:"", dia:""}, tg:{activo:false, yo:false}, tgCode:null, rp:"semana", rpp:"all", repUrl:"", usuario:"", skew:0, token:"", busy:false};
 const guardado = {
   get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
   set(k,v){ try { localStorage.setItem(k,v); } catch(e){} },
@@ -469,7 +495,7 @@ function aplicar(r){
   if (r.auth === false) { S.auth = false; S.token = ""; guardado.del("nexo-token"); guardado.del("nexo-copia"); render(); return; }
   if (!r.copia) guardado.set("nexo-copia", JSON.stringify(Object.assign({}, r, {copia:true})));
   S.auth = true; S.members = r.miembros; S.tasks = r.tareas; S.events = r.eventos; S.mat = r.mat || {};
-  S.soy = r.yo.id; S.admin = r.yo.admin; S.veIds = r.yo.ve || []; S.notasIds = r.notas || []; S.avisos = r.avisos || []; S.pushKey = (r.push && r.push.clave) || ""; S.recs = r.recordatorios || []; S.tg = r.telegram || {activo:false, yo:false}; if (r.extra && r.extra.code) S.tgCode = r.extra; if (r.extra && r.extra.ok) S.tgCode = null; if (r.extra && r.extra.url) S.repUrl = r.extra.url; S.usuario = r.yo.usuario || ""; if (!r.copia) S.skew = r.ahora - Date.now();
+  S.soy = r.yo.id; S.admin = r.yo.admin; S.veIds = r.yo.ve || []; S.notasIds = r.notas || []; S.avisos = r.avisos || []; S.pushKey = (r.push && r.push.clave) || ""; S.recs = r.recordatorios || []; S.libres = r.libres || []; S.tg = r.telegram || {activo:false, yo:false}; if (r.extra && r.extra.code) S.tgCode = r.extra; if (r.extra && r.extra.ok) S.tgCode = null; if (r.extra && r.extra.url) S.repUrl = r.extra.url; S.usuario = r.yo.usuario || ""; if (!r.copia) S.skew = r.ahora - Date.now();
   render();
   if (!r.copia) notificar();
   if (!r.copia && PUEDE_PUSH && !pushIntento && Notification.permission === "granted") { pushIntento = true; guardarCfg(); suscribirPush(); }
@@ -853,7 +879,8 @@ function vEquipo(){
       <div class="link-row">${m.acceso ? `<span class="pill ok">✓ Tiene acceso</span>${m.usuario?`<span class="muted">Usuario: <b>${esc(m.usuario)}</b></span>`:""}${m.admin?`<span class="badge-admin">Admin</span>`:""}` : `<span class="pill warn">Sin acceso</span>`}
         ${S.admin && !m.admin ? veTxt(m) : ""}
         ${S.admin || yoMismo ? `<button class="btn sm" type="button" data-acc="${esc(m.id)}">${m.acceso?(yoMismo&&!S.admin?"Cambiar mi contraseña":"Cambiar usuario o contraseña"):"Crear usuario y contraseña"}</button>` : ""}
-        ${S.admin && m.acceso && !yoMismo ? `<button class="btn sm danger" type="button" data-quitar="${esc(m.id)}">Quitar acceso</button>` : ""}</div>
+        ${S.admin && m.acceso && !yoMismo ? `<button class="btn sm danger" type="button" data-quitar="${esc(m.id)}">Quitar acceso</button>` : ""}
+        ${S.admin && !m.admin && !yoMismo ? `<button class="btn sm danger" type="button" data-borrarm="${esc(m.id)}">Eliminar persona</button>` : ""}</div>
       <div id="accbox-${esc(m.id)}"></div>
       ${S.admin && !m.admin ? `<details class="vebox"><summary>Qué tareas puede ver además de las suyas</summary><div class="chips" data-vebox="${esc(m.id)}">${Object.entries(AREAS).map(([k,a]) => `<label class="chip"><input type="checkbox" value="area:${k}" ${veToks(m).includes("area:"+k)?"checked":""}> Todo ${esc(a.l.split(" ")[0])}</label>`).join("")}${sorted().filter(x => x.id !== m.id).map(x => `<label class="chip"><input type="checkbox" value="${esc(x.id)}" ${veToks(m).includes(x.id)?"checked":""}> ${esc(corto(x))}</label>`).join("")}</div></details>` : ""}
       <ul class="rut">${rut.map(t=>`<li data-id="${esc(t.id)}"><span class="pill rec">↻ ${esc(freqTxt(t))}</span><span>${(t.con||[]).length?"👥 ":""}${esc(t.titulo)}</span>${t.trabajo?`<span class="pill rec">⏱</span>`:""}</li>`).join("")}${S.admin?`<li data-newrut="${esc(m.id)}" style="background:transparent;border:1px dashed var(--line);color:var(--accent);font-weight:600">＋ Agregar rutina</li>`:""}</ul></div>`;
@@ -1031,7 +1058,8 @@ function render(){
   const abiertos = [...document.querySelectorAll("[id^=accbox-]")].filter(b => b.innerHTML).map(b => b.id).concat([...document.querySelectorAll("details.vebox[open]")].map(()=>"ve"));
   if (abiertos.length) return;
   if (S.view === "agenda" && $("#rf-t") && $("#rf-t").value && document.activeElement && document.activeElement.closest && document.activeElement.closest("#recf")) return;
-  app.innerHTML = S.view==="tablero" ? vTablero() : S.view==="eventos" ? vEventos() : S.view==="tiempos" ? vTiempos() : S.view==="equipo" ? vEquipo() : S.view==="reportes" && ve() ? vReportes() : S.view==="agenda" ? vAgenda() : vHoy();
+  if (S.view === "calendario" && document.activeElement && document.activeElement.closest && document.activeElement.closest("#librf")) return;
+  app.innerHTML = S.view==="tablero" ? vTablero() : S.view==="eventos" ? vEventos() : S.view==="tiempos" ? vTiempos() : S.view==="equipo" ? vEquipo() : S.view==="reportes" && ve() ? vReportes() : S.view==="calendario" ? vCalendario() : S.view==="agenda" ? vAgenda() : vHoy();
   if (q !== null) { const el = $("#q"); el.focus(); el.setSelectionRange(q,q); }
 }
 
@@ -1153,13 +1181,19 @@ function openTask(id, preset = {}){
     const sv = $("#sv"); sv.disabled = true; sv.textContent = "Guardando…";
     try {
       await API("guardar", t ? {id:t.id, data, key:i.key, ajuste: $("#f-ajuste") ? $("#f-ajuste").value : null} : {data:{...data, links}});
-      toast(t ? "Guardado" : (enHorario() ? "Pendiente agregado" : "Pendiente dejado para el siguiente día hábil ☾")); close();
+      toast((t ? "Guardado" : (enHorario() ? "Pendiente agregado" : "Pendiente dejado para el siguiente día hábil ☾")) + diaLibreAviso(data)); close();
     } catch(err){ sv.disabled = false; sv.textContent = t?"Guardar":"Agregar"; }
   };
   setTimeout(()=> { if (!t) $("#f-titulo").focus(); }, 30);
 }
 
 document.addEventListener("submit", async e => {
+  if (e.target.id === "librf") {
+    e.preventDefault(); const desde = $("#lib-d").value, hasta = $("#lib-h").value || desde; if (!desde) { $("#lib-d").focus(); toast("Elige la fecha"); return; }
+    const b = e.target.querySelector("button"); b.disabled = true;
+    try { await API("libreNuevo", {miembro: $("#lib-p").value, desde, hasta, motivo: $("#lib-m").value.trim()}); toast("Día no laborable guardado 🏖"); if (document.activeElement) document.activeElement.blur(); render(); } catch(err){ b.disabled = false; }
+    return;
+  }
   if (e.target.id === "recf") {
     e.preventDefault(); const texto = $("#rf-t").value.trim(); if (!texto) { $("#rf-t").focus(); toast("Escribe qué hay que recordar"); return; }
     const f = $("#rf-f").value, hh = $("#rf-h").value || "09:00"; if (!f) { $("#rf-f").focus(); toast("Elige la fecha"); return; }
@@ -1207,6 +1241,12 @@ document.addEventListener("click", async e => {
   if (e.target.id === "salir" && PUEDE_PUSH) { try { const reg = await navigator.serviceWorker.getRegistration(); const sub = reg && await reg.pushManager.getSubscription(); if (sub) { await API("pushQuitar", {endpoint: sub.endpoint}).catch(()=>{}); await sub.unsubscribe(); } } catch(err){} S.token = ""; guardarCfg(); }
   if (e.target.id === "salir") { try { await API("salir"); } catch(err){} return; }
   const ac = e.target.closest("[data-acc]"); if (ac) { abrirAcceso(ac.dataset.acc); return; }
+  const bm = e.target.closest("[data-borrarm]"); if (bm) { if (bm.dataset.sure!=="1") { bm.dataset.sure="1"; bm.textContent="¿Seguro? Eliminar"; return; } try { await API("borrarMiembro", {id:bm.dataset.borrarm}); toast("Persona eliminada. Sus tareas pasaron a Camila."); } catch(err){} return; }
+  const ctk = e.target.closest("[data-caltask]"); if (ctk) { openTask(ctk.dataset.caltask); return; }
+  const ldl = e.target.closest("[data-libredel]"); if (ldl) { if (ldl.dataset.sure!=="1") { ldl.dataset.sure="1"; ldl.textContent="¿Quitar?"; ldl.style.fontSize="12px"; return; } try { await API("libreBorrar", {id:ldl.dataset.libredel}); toast("Día no laborable quitado"); } catch(err){} return; }
+  const cmn = e.target.closest("[data-calmes]"); if (cmn) { calMover(Number(cmn.dataset.calmes)); return; }
+  if (e.target.closest("[data-calhoy]")) { S.cal.mes = ""; S.cal.dia = ""; render(); return; }
+  const cdi = e.target.closest("[data-caldia]"); if (cdi) { S.cal.dia = cdi.dataset.caldia; render(); return; }
   const qu = e.target.closest("[data-quitar]"); if (qu) { if (qu.dataset.sure!=="1") { qu.dataset.sure="1"; qu.textContent="¿Seguro? Quitar"; return; } try { await API("quitarAcceso", {id:qu.dataset.quitar}); toast("Acceso quitado"); } catch(err){} return; }
   const tm = e.target.closest("[data-tmr]");
   if (tm) { e.stopPropagation(); if (tm.disabled) return; const t = S.tasks.find(x=>x.id===tm.dataset.tmr); if (t) playPause(inst(t)); return; }
@@ -1226,11 +1266,12 @@ document.addEventListener("click", async e => {
   if (e.target.id === "addMember") { try { await API("nuevoMiembro"); toast("Persona agregada. Cambia su nombre."); } catch(err){} return; }
   if (e.target.id === "addEvBtn") { addEvForm(); return; }
 });
-document.addEventListener("keydown", e => { if (e.key==="Enter" && e.target.classList?.contains("card")) openTask(e.target.dataset.id); if (e.key==="Escape") $("#ovRoot").innerHTML = ""; });
+document.addEventListener("keydown", e => { if ((e.key==="Enter" || e.key===" ") && e.target.dataset?.caldia) { e.preventDefault(); S.cal.dia = e.target.dataset.caldia; render(); return; } if (e.key==="Enter" && e.target.classList?.contains("card")) openTask(e.target.dataset.id); if (e.key==="Escape") $("#ovRoot").innerHTML = ""; });
 document.addEventListener("input", e => { if (e.target.id==="q") { S.f.q = e.target.value; clearTimeout(render._q); render._q = setTimeout(render, 150); } });
 document.addEventListener("change", async e => {
   const vb = e.target.closest?.("[data-vebox]"); if (vb && S.admin) { const valor = [...vb.querySelectorAll("input:checked")].map(x => x.value).join(","); try { await API("miembro", {id:vb.dataset.vebox, campo:"ve", valor}); toast("Permisos de vista guardados"); } catch(err){} return; }
   if (e.target.id === "agp") { S.agp = e.target.value; render(); return; }
+  if (e.target.id === "calp") { S.cal.p = e.target.value; render(); return; }
   if (e.target.id === "rpp") { S.rpp = e.target.value; S.repUrl = ""; render(); return; }
   const mf = e.target.dataset?.mf; if (mf && S.admin) { const val = e.target.value.trim(); if (mf==="nombre" && !val) return; try { await API("miembro", {id:e.target.dataset.m, campo:mf, valor:val}); toast("Guardado"); } catch(err){} }
 });
@@ -1258,7 +1299,101 @@ function addEvForm(){
   };
 }
 
-function route(){ const h = location.hash.replace("#",""); S.view = ["hoy","agenda","tablero","eventos","tiempos","equipo","reportes"].includes(h) ? h : "hoy"; render(); window.scrollTo(0,0); }
+/* ================= calendario ================= */
+function libresDe(pid, fecha){ return S.libres.filter(x => (x.miembro === "todos" || x.miembro === pid) && x.desde <= fecha && fecha <= x.hasta); }
+function estaLibre(pid, fecha){ return libresDe(pid, fecha).length > 0; }
+function diaLibreAviso(d){
+  if ((d.freq || "una") !== "una" || !d.fecha) return "";
+  const quienes = [d.resp, ...(d.con || [])].filter(id => estaLibre(id, d.fecha)).map(id => corto(member(id)));
+  if (quienes.length) return ` ⚠ Ojo: ${quienes.join(", ")} ${quienes.length > 1 ? "están libres" : "está libre"} ese día.`;
+  if (!HORARIO[parse(d.fecha).getDay()]) return " ⚠ Ojo: ese día no es laborable.";
+  return "";
+}
+function calItems(fecha, pids){
+  const d = parse(fecha), dow = d.getDay(), set = new Set(pids);
+  const out = {tareas:[], rut:[], eventos:[], libres:[]};
+  for (const t of S.tasks) {
+    const quienes = equipoDe(t).filter(id => set.has(id));
+    if (!quienes.length) continue;
+    const f = t.freq || "una";
+    if (f === "una") {
+      if (t.fecha && String(t.fecha).slice(0,10) === fecha) out.tareas.push({t, choque: (t.estado || "todo") !== "done" && (!HORARIO[dow] || quienes.some(id => estaLibre(id, fecha)))});
+      continue;
+    }
+    if (!quienes.some(id => !estaLibre(id, fecha))) continue;
+    let toca = false;
+    if (f === "diaria") toca = !!HORARIO[dow];
+    else if (f === "semanal") toca = dow === (t.dia ?? 1);
+    else if (f === "mensual") { const last = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate(); toca = d.getDate() === Math.min(t.dia || 1, last); }
+    if (toca) out.rut.push(t);
+  }
+  for (const ev of S.events) {
+    if (ev.repite === "semanal") { if (Number(ev.dia) === dow) out.eventos.push({ev, hora: ev.hora || ""}); }
+    else if (ev.inicio) { const di = new Date(ev.inicio); if (ymd(di) === fecha) out.eventos.push({ev, hora: `${pad(di.getHours())}:${pad(di.getMinutes())}`}); }
+  }
+  out.eventos.sort((a,b) => String(a.hora).localeCompare(String(b.hora)));
+  const vistos = new Set();
+  for (const id of pids) for (const x of libresDe(id, fecha)) { const k = x.miembro === "todos" ? x.id : x.id + ":" + id; if (!vistos.has(k)) { vistos.add(k); out.libres.push({x, id: x.miembro === "todos" ? "" : id}); } }
+  return out;
+}
+function calMover(n){
+  const [Y, M] = (S.cal.mes || ymd(today()).slice(0,7)).split("-").map(Number), d = new Date(Y, M - 1 + n, 1);
+  S.cal.mes = d.getFullYear() + "-" + pad(d.getMonth() + 1); S.cal.dia = ""; render();
+}
+function vCalendario(){
+  if (!S.cal.mes) S.cal.mes = ymd(today()).slice(0,7);
+  const [Y, M] = S.cal.mes.split("-").map(Number);
+  const opciones = sorted().filter(m => veo(m.id));
+  if (!S.cal.p || (S.cal.p === "__eq" ? !S.admin : !opciones.some(m => m.id === S.cal.p))) S.cal.p = S.soy;
+  const equipo = S.cal.p === "__eq", pid = S.cal.p, pids = equipo ? sorted().map(m => m.id) : [pid];
+  const hoyS = ymd(today()), offset = (new Date(Y, M-1, 1).getDay() + 6) % 7, ultimo = new Date(Y, M, 0).getDate(), semanas = Math.ceil((offset + ultimo) / 7);
+  const sel = S.cal.dia && S.cal.dia.slice(0,7) === S.cal.mes ? S.cal.dia : (hoyS.slice(0,7) === S.cal.mes ? hoyS : S.cal.mes + "-01");
+  const chip = (cls, txt, extra = "", style = "") => `<span class="cal-c ${cls}" ${extra} ${style ? `style="${style}"` : ""}>${txt}</span>`;
+  const tChip = x => { const t = x.t, done = (t.estado || "todo") === "done", r = member(t.resp);
+    return chip((t.prio === "urgente" ? "u " : "") + (done ? "ok" : ""), `${x.choque ? "⚠ " : ""}${equipo ? esc(initials(r?.nombre)) + " · " : ""}${esc(t.titulo)}`, `data-caltask="${esc(t.id)}" title="${esc(t.titulo)}"`, `--c:${areaColor(r)}`); };
+  let celdas = "";
+  for (let i = 0; i < semanas * 7; i++) {
+    const n = i - offset + 1;
+    if (n < 1 || n > ultimo) { celdas += `<div class="cal-d out"></div>`; continue; }
+    const f = `${Y}-${pad(M)}-${pad(n)}`, dow = new Date(Y, M-1, n).getDay(), it = calItems(f, pids);
+    const libreDia = equipo ? libresDe("__x", f).length > 0 : estaLibre(pid, f);
+    const chips = [
+      ...it.libres.map(l => chip("lib", `🏖 ${l.id ? esc(corto(member(l.id))) + ": " : ""}${esc(l.x.motivo || "Libre")}`)),
+      ...it.eventos.map(e => chip("ev", `◆ ${esc(e.hora)} ${esc(e.ev.titulo)}`.replace("◆  ", "◆ "), `title="${esc(e.ev.titulo)}"`)),
+      ...it.tareas.map(tChip)
+    ];
+    const ver = chips.slice(0, 3).join(""), mas = chips.length > 3 ? `<span class="cal-m">+${chips.length - 3} más</span>` : "";
+    const rutTxt = it.rut.length ? `<span class="cal-m">↻ ${it.rut.length} rutina${it.rut.length > 1 ? "s" : ""}</span>` : "";
+    celdas += `<div class="cal-d ${!HORARIO[dow] ? "dom" : ""} ${libreDia ? "libre" : ""} ${f === hoyS ? "hoy" : ""} ${f === sel ? "sel" : ""}" data-caldia="${f}" tabindex="0" role="button" aria-label="${esc(DIAS_L[dow])} ${n}"><span class="num">${n}</span>${ver}${mas}${rutTxt}</div>`;
+  }
+  // detalle del día elegido
+  const dsel = parse(sel), it = calItems(sel, pids), dow = dsel.getDay();
+  const quien = x => equipo ? `<span class="muted" style="font-size:12.5px">${esc(equipoDe(x).filter(id => pids.includes(id)).map(id => corto(member(id))).join(", "))}</span>` : "";
+  const detalle = `<div class="ag-box cal-det" style="margin-top:14px"><h3 style="margin:0">${esc(DIAS_L[dow][0].toUpperCase() + DIAS_L[dow].slice(1))} ${dsel.getDate()} de ${MESES_L[dsel.getMonth()]}${!HORARIO[dow] ? ` <span class="pill rec">No laborable</span>` : ""}</h3>
+    ${it.libres.length ? `<h4>No laborable</h4><ul class="mini">${it.libres.map(l => `<li>🏖 <b>${l.id ? esc(corto(member(l.id))) : "Todo el equipo"}</b> · ${esc(l.x.motivo || "Libre")} <span class="muted">(${esc(fmtCorto(l.x.desde))}${l.x.hasta !== l.x.desde ? " → " + esc(fmtCorto(l.x.hasta)) : ""})</span>${S.admin ? `<button class="del" type="button" data-libredel="${esc(l.x.id)}" aria-label="Quitar">×</button>` : ""}</li>`).join("")}</ul>` : ""}
+    ${it.eventos.length ? `<h4>Eventos</h4><ul class="mini">${it.eventos.map(e => `<li><span class="pill" style="background:var(--night-bg);color:var(--night)">◆ ${esc(e.hora || "Todo el día")}</span><b>${esc(e.ev.titulo)}</b><span class="muted">${esc(e.ev.lugar || "")}</span></li>`).join("")}</ul>` : ""}
+    ${it.tareas.length ? `<h4>Tareas</h4><ul class="mini">${it.tareas.map(x => `<li data-caltask="${esc(x.t.id)}">${avHtml(member(x.t.resp))}<span>${x.t.prio === "urgente" ? "🔴 " : ""}${x.choque ? "⚠ " : ""}${esc(x.t.titulo)}</span>${quien(x.t)}<span class="pill rec">${esc((ESTADOS.find(e => e[0] === (x.t.estado || "todo")) || [])[1] || "")}</span></li>`).join("")}</ul>` : ""}
+    ${it.rut.length ? `<h4>Rutinas</h4><ul class="mini">${it.rut.map(t => `<li data-caltask="${esc(t.id)}"><span class="pill rec">↻ ${esc(freqTxt(t))}</span><span>${esc(t.titulo)}</span>${quien(t)}</li>`).join("")}</ul>` : ""}
+    ${!it.libres.length && !it.eventos.length && !it.tareas.length && !it.rut.length ? `<span class="muted" style="font-size:13.5px">Nada programado este día.</span>` : ""}</div>`;
+  // días no laborables
+  const lista = S.libres.filter(x => x.hasta >= hoyS).sort((a,b) => a.desde.localeCompare(b.desde));
+  const libreBox = `<div class="ag-box" style="margin-top:14px"><h3 style="margin:0">🏖 Días no laborables</h3>
+    <p class="muted" style="margin:0;font-size:13px">${S.admin ? "Vacaciones, feriados o permisos. En esos días no se cuentan las rutinas y te avisamos si dejas una tarea con fecha ahí." : "Vacaciones y feriados que te corresponden."}</p>
+    ${S.admin ? `<form class="lib-form" id="librf" novalidate>
+      <div class="f"><label for="lib-p">Quién</label><select id="lib-p"><option value="todos">Todo el equipo (feriado)</option>${sorted().map(m => `<option value="${esc(m.id)}" ${m.id === pid ? "selected" : ""}>${esc(m.nombre)}</option>`).join("")}</select></div>
+      <div class="f"><label for="lib-d">Desde</label><input id="lib-d" type="date" value="${esc(sel)}"></div>
+      <div class="f"><label for="lib-h">Hasta (opcional)</label><input id="lib-h" type="date"></div>
+      <div class="f"><label for="lib-m">Motivo</label><input id="lib-m" placeholder="Ej. Vacaciones"></div>
+      <button class="btn solid" type="submit">Agregar</button></form>` : ""}
+    ${lista.length ? `<ul class="mini">${lista.map(x => `<li>🏖 <b>${x.miembro === "todos" ? "Todo el equipo" : esc(corto(member(x.miembro)))}</b> · ${esc(x.motivo || "Libre")} <span class="muted">${esc(fmtCorto(x.desde))}${x.hasta !== x.desde ? " → " + esc(fmtCorto(x.hasta)) : ""}</span>${S.admin ? `<button class="del" type="button" data-libredel="${esc(x.id)}" aria-label="Quitar">×</button>` : ""}</li>`).join("")}</ul>` : `<span class="muted" style="font-size:13.5px">No hay días no laborables próximos.</span>`}</div>`;
+  return `<section style="margin-top:22px"><div class="sec-head"><div><h2>Calendario ${equipo ? "del equipo" : pid === S.soy ? "" : "de " + esc(member(pid)?.nombre || "")}</h2><p class="muted">${equipo ? "Las tareas de todos, con el color de su área." : "Tus tareas, rutinas y eventos del mes."} Toca un día para ver el detalle.</p></div>
+    ${opciones.length > 1 || S.admin ? `<select id="calp" class="inp" style="width:auto" aria-label="Ver calendario de">${S.admin ? `<option value="__eq" ${equipo ? "selected" : ""}>Todo el equipo</option>` : ""}${opciones.map(m => `<option value="${esc(m.id)}" ${!equipo && m.id === pid ? "selected" : ""}>${m.id === S.soy ? "Mi calendario" : esc(m.nombre)}</option>`).join("")}</select>` : ""}</div>
+  <div class="cal-bar"><button class="btn sm" type="button" data-calmes="-1" aria-label="Mes anterior">‹</button><h3 style="text-transform:capitalize">${MESES_L[M-1]} ${Y}</h3><button class="btn sm" type="button" data-calmes="1" aria-label="Mes siguiente">›</button><button class="btn sm" type="button" data-calhoy="1">Hoy</button></div>
+  <div class="cal-grid">${["lun","mar","mié","jue","vie","sáb","dom"].map(d => `<div class="cal-h">${d}</div>`).join("")}${celdas}</div>
+  <div class="cal-leg"><span><i style="background:var(--accent)"></i>Tarea</span><span><i style="background:var(--night)"></i>◆ Evento (Zoom, visitas, grabaciones)</span><span><i style="background:var(--warn-line)"></i>🏖 No laborable</span><span><i style="background:var(--bad)"></i>Urgente</span><span>↻ Rutinas</span></div>
+  ${detalle}${libreBox}</section>`;
+}
+function route(){ const h = location.hash.replace("#",""); S.view = ["hoy","agenda","calendario","tablero","eventos","tiempos","equipo","reportes"].includes(h) ? h : "hoy"; render(); window.scrollTo(0,0); }
 window.addEventListener("hashchange", route);
 setInterval(() => { if (S.auth && !$("#ovRoot").innerHTML && (document.visibilityState === "visible" || permisoNotif() === "granted")) API("load").catch(()=>{}); }, 20000);
 document.addEventListener("visibilitychange", () => { if (S.auth && document.visibilityState === "visible") API("load").catch(()=>{}); });
