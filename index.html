@@ -536,6 +536,11 @@ const puedeMover = t => ve() || participa(t);
 const puedeEditar = t => ve() || (!!S.soy && (t.creadoPor === S.soy || t.resp === S.soy));
 const puedeBorrar = t => S.admin || (!!S.soy && t.creadoPor === S.soy && (t.freq||"una")==="una");
 
+const hhmm = t => (t && t.hora) ? String(t.hora).slice(0,5) : "";
+const hhTxt = t => { const x = hhmm(t); if (!x) return ""; const [H, Mi] = x.split(":").map(Number); return (H % 12 || 12) + ":" + pad(Mi) + " " + (H < 12 ? "a. m." : "p. m."); };
+/** ¿Ya pasó la hora límite de hoy? (solo si la tarea vence hoy y tiene hora) */
+function pasoHora(i){ if (!i || !i.due || !hhmm(i.t) || i.estado === "done" || diff(i.due) !== 0) return false; const [H, Mi] = hhmm(i.t).split(":").map(Number), n = new Date(ahora()); return n.getHours() * 60 + n.getMinutes() >= H * 60 + Mi; }
+const vencida = i => !!i.due && i.estado !== "done" && (diff(i.due) < 0 || pasoHora(i));
 function inst(t){
   const f = t.freq || "una", d0 = today(), per = t.periodos || {};
   if (f === "una") return {t, key:"u", estado:t.estado||"todo", due:t.fecha ? String(t.fecha).slice(0,10) : "", rec:false};
@@ -555,7 +560,7 @@ function instancias(){
 }
 function nivel(i){
   if (i.estado === "done") return "";
-  if (i.due && diff(i.due) < 0) return "bad";
+  if (vencida(i)) return "bad";
   if (i.t.prio === "urgente") return "bad";
   if (i.t.fuera && !i.t.visto) return "night";
   if (i.due && diff(i.due) <= 1) return "warn";
@@ -563,7 +568,7 @@ function nivel(i){
 }
 function orden(a,b){
   const w = i => (nivel(i)==="bad"?0:nivel(i)==="night"?1:nivel(i)==="warn"?2:3);
-  return w(a)-w(b) || (a.due||"9999").localeCompare(b.due||"9999") || (a.t.prio==="alta"?-1:0)-(b.t.prio==="alta"?-1:0);
+  return w(a)-w(b) || ((a.due||"9999") + " " + (hhmm(a.t) || "23:59")).localeCompare((b.due||"9999") + " " + (hhmm(b.t) || "23:59")) || (a.t.prio==="alta"?-1:0)-(b.t.prio==="alta"?-1:0);
 }
 
 const corriendo = (t, key) => t.timer && t.timer.desde && (key == null || t.timer.key === key);
@@ -637,8 +642,8 @@ function tagHtml(i){
 }
 function dueHtml(i){
   if (!i.due) return "";
-  const n = diff(i.due), cls = i.estado==="done" ? "ok" : n<0 ? "bad" : n<=1 ? "warn" : "";
-  return `<span class="pill ${cls}">${esc(fmtDue(i.due))}</span>`;
+  const n = diff(i.due), cls = i.estado==="done" ? "ok" : (n<0 || pasoHora(i)) ? "bad" : n<=1 ? "warn" : "";
+  return `<span class="pill ${cls}">${esc(fmtDue(i.due))}${hhmm(i.t) ? " · " + esc(hhmm(i.t)) : ""}</span>`;
 }
 function cardHtml(i){
   const ms = equipoDe(i.t).map(member).filter(Boolean), lv = nivel(i);
@@ -716,7 +721,7 @@ function agendaDe(pid, dias){
   const mias = S.tasks.filter(t => equipoDe(t).includes(pid));
   for (const t of mias) {
     const f = t.freq || "una";
-    if (f === "una") { if ((t.estado||"todo") === "done" || !t.fecha) continue; const d = parse(t.fecha), n = diff(t.fecha); if (n < 0) atras.push({t, d}); else if (n < dias) out.push({t, d}); continue; }
+    if (f === "una") { if ((t.estado||"todo") === "done" || !t.fecha) continue; const d = parse(t.fecha), n = diff(t.fecha); if (n < 0 || (n === 0 && pasoHora({t, due: String(t.fecha).slice(0,10), estado: t.estado || "todo"}))) atras.push({t, d}); else if (n < dias) out.push({t, d}); continue; }
     for (let k = 0; k < dias; k++) {
       const d = addDays(hoy, k); let toca = false, key = "";
       if (f === "diaria") { toca = !!HORARIO[d.getDay()]; key = "d:" + ymd(d); }
@@ -740,7 +745,7 @@ function vAgenda(){
   const A = agendaDe(pid, 14), porDia = {};
   A.out.forEach(x => { const k = ymd(x.d); (porDia[k] = porDia[k] || []).push(x); });
   const itemHtml = x => { const i = inst(x.t) || {t:x.t, estado:"todo", due:ymd(x.d), rec:(x.t.freq||"una")!=="una", key:""}; const lv = x.t.prio==="urgente" || diff(ymd(x.d))<0 ? "bad" : diff(ymd(x.d))<=1 ? "warn" : "";
-    return `<li data-id="${esc(x.t.id)}"><span class="sev ${lv}"></span><span class="t">${x.t.prio==="urgente"?"🔴 ":""}${esc(x.t.titulo)}</span>${(x.t.freq||"una")!=="una"?`<span class="pill rec">↻</span>`:""}</li>`; };
+    return `<li data-id="${esc(x.t.id)}"><span class="sev ${lv}"></span><span class="t">${x.t.prio==="urgente"?"🔴 ":""}${hhmm(x.t) ? `<b>${esc(hhmm(x.t))}</b> ` : ""}${esc(x.t.titulo)}</span>${(x.t.freq||"una")!=="una"?`<span class="pill rec">↻</span>`:""}</li>`; };
   let h = `<section style="margin-top:22px"><div class="sec-head"><div><h2>Agenda ${esYo ? "" : "de " + esc(persona?.nombre||"")}</h2><p class="muted">Tus recordatorios programados y lo que te toca en los próximos 14 días.</p></div>
     ${opciones.length > 1 ? `<select id="agp" class="inp" style="width:auto" aria-label="Ver agenda de">${opciones.map(m => `<option value="${esc(m.id)}" ${m.id===pid?"selected":""}>${m.id===S.soy?"Mi agenda":esc(m.nombre)}</option>`).join("")}</select>` : ""}</div>
   <div class="ag-grid"><div class="ag-box"><h3>⏰ Recordatorios programados</h3>
@@ -904,8 +909,8 @@ function claveSugerida(){ const a = "abcdefghjkmnpqrstuvwxyz23456789"; let s = "
 function alertas(){
   if (!S.auth) return [];
   return instancias().filter(i => i.estado !== "done" && participa(i.t) && (i.t.prio === "urgente" || (i.due && diff(i.due) <= 2)))
-    .map(i => { const n = i.due ? diff(i.due) : null; const lv = (n !== null && n <= 0) || i.t.prio === "urgente" ? "bad" : "warn";
-      const txt = n === null ? "Urgente" : n < 0 ? `Venció hace ${-n} día${n===-1?"":"s"}` : n === 0 ? "Vence hoy" : n === 1 ? "Vence mañana" : `Vence en ${n} días`;
+    .map(i => { const n = i.due ? diff(i.due) : null; const lv = (n !== null && n <= 0) || i.t.prio === "urgente" ? "bad" : "warn", hr = hhmm(i.t);
+      const txt = n === null ? "Urgente" : n < 0 ? `Venció hace ${-n} día${n===-1?"":"s"}` : n === 0 ? (pasoHora(i) ? `Venció hoy a las ${hr}` : hr ? `Vence hoy a las ${hr}` : "Vence hoy") : n === 1 ? `Vence mañana${hr ? " a las " + hr : ""}` : `Vence en ${n} días`;
       return {i, n, lv, txt: (i.t.prio==="urgente" && n !== null ? "Urgente · " : "") + txt}; })
     .sort((a,b) => (a.n ?? -99) - (b.n ?? -99));
 }
@@ -1094,6 +1099,7 @@ function openTask(id, preset = {}){
       <div class="f"><label for="f-freq">Se repite</label><select id="f-freq" ${edit && !lk && (puedeRutina || (v.freq||"una")==="una") ? "" : "disabled"}>${[["una","Una sola vez"],["diaria","Todos los días (lun–sáb)"],["semanal","Cada semana"],["mensual","Cada mes"]].filter(([k])=>puedeRutina || k==="una" || k===v.freq).map(([k,l])=>`<option value="${k}" ${k===(v.freq||"una")?"selected":""}>${l}</option>`).join("")}</select></div>
       <div class="f" id="w-fecha"><label for="f-fecha">Fecha límite</label><input id="f-fecha" type="date" value="${esc(v.fecha||"")}" ${dis} ${lk}></div>
       <div class="f" id="w-dia"><label for="f-dia" id="l-dia">Día</label><select id="f-dia" ${dis} ${lk}></select></div>
+      <div class="f" id="w-hora"><label for="f-hora">Hora límite (opcional)</label><input id="f-hora" type="time" value="${esc(v.hora||"")}" ${dis} ${lk}></div>
       <div class="f"><label for="f-prio">Prioridad</label><select id="f-prio" ${dis} ${lk}>${[["normal","Normal"],["alta","Alta"],["urgente","Urgente"]].map(([k,l])=>`<option value="${k}" ${k===(v.prio||"normal")?"selected":""}>${l}</option>`).join("")}</select></div>
       <div class="f"><label for="f-trabajo">Medir tiempo</label><select id="f-trabajo" ${dis}><option value="">No medir</option>${Object.entries(TRABAJO).map(([k,l])=>`<option value="${k}" ${k===v.trabajo?"selected":""}>${l}</option>`).join("")}</select></div>
       <div class="f" id="w-est"><label for="f-est">Tiempo estimado (min)</label><input id="f-est" type="number" min="0" step="15" value="${v.estimado||""}" placeholder="Ej. 90" ${dis}></div>
@@ -1177,7 +1183,7 @@ function openTask(id, preset = {}){
     const f = fq.value;
     const con = ms.map(m=>m.id).filter(id => id!==resp && $("#fc-"+id)?.checked);
     const data = { titulo, resp, con, empresa:$("#f-empresa").value, prio:$("#f-prio").value, freq:f, dia: (f==="semanal"||f==="mensual") ? Number(fd.value) : 0,
-      fecha: f==="una" ? $("#f-fecha").value : "", evento:$("#f-evento").value, nota:$("#f-nota").value.trim(), privado: $("#f-priv") ? $("#f-priv").checked : !!(t && t.privado), trabajo:ft.value, estimado: ft.value ? Number($("#f-est").value||0) : 0 };
+      fecha: f==="una" ? $("#f-fecha").value : "", hora: $("#f-hora").value || "", evento:$("#f-evento").value, nota:$("#f-nota").value.trim(), privado: $("#f-priv") ? $("#f-priv").checked : !!(t && t.privado), trabajo:ft.value, estimado: ft.value ? Number($("#f-est").value||0) : 0 };
     const sv = $("#sv"); sv.disabled = true; sv.textContent = "Guardando…";
     try {
       await API("guardar", t ? {id:t.id, data, key:i.key, ajuste: $("#f-ajuste") ? $("#f-ajuste").value : null} : {data:{...data, links}});
@@ -1306,7 +1312,9 @@ function diaLibreAviso(d){
   if ((d.freq || "una") !== "una" || !d.fecha) return "";
   const quienes = [d.resp, ...(d.con || [])].filter(id => estaLibre(id, d.fecha)).map(id => corto(member(id)));
   if (quienes.length) return ` ⚠ Ojo: ${quienes.join(", ")} ${quienes.length > 1 ? "están libres" : "está libre"} ese día.`;
-  if (!HORARIO[parse(d.fecha).getDay()]) return " ⚠ Ojo: ese día no es laborable.";
+  const hw = HORARIO[parse(d.fecha).getDay()];
+  if (!hw) return " ⚠ Ojo: ese día no es laborable.";
+  if (d.hora) { const [H, Mi] = d.hora.split(":").map(Number), x = H + Mi / 60; if (x < hw[0] || x > hw[1]) return ` ⚠ Ojo: las ${d.hora} está fuera del horario (${hw[0]}:00–${hw[1]}:00).`; }
   return "";
 }
 function calItems(fecha, pids){
@@ -1332,6 +1340,8 @@ function calItems(fecha, pids){
     else if (ev.inicio) { const di = new Date(ev.inicio); if (ymd(di) === fecha) out.eventos.push({ev, hora: `${pad(di.getHours())}:${pad(di.getMinutes())}`}); }
   }
   out.eventos.sort((a,b) => String(a.hora).localeCompare(String(b.hora)));
+  out.tareas.sort((a,b) => (hhmm(a.t) || "99:99").localeCompare(hhmm(b.t) || "99:99"));
+  out.rut.sort((a,b) => (hhmm(a) || "99:99").localeCompare(hhmm(b) || "99:99"));
   const vistos = new Set();
   for (const id of pids) for (const x of libresDe(id, fecha)) { const k = x.miembro === "todos" ? x.id : x.id + ":" + id; if (!vistos.has(k)) { vistos.add(k); out.libres.push({x, id: x.miembro === "todos" ? "" : id}); } }
   return out;
@@ -1350,7 +1360,7 @@ function vCalendario(){
   const sel = S.cal.dia && S.cal.dia.slice(0,7) === S.cal.mes ? S.cal.dia : (hoyS.slice(0,7) === S.cal.mes ? hoyS : S.cal.mes + "-01");
   const chip = (cls, txt, extra = "", style = "") => `<span class="cal-c ${cls}" ${extra} ${style ? `style="${style}"` : ""}>${txt}</span>`;
   const tChip = x => { const t = x.t, done = (t.estado || "todo") === "done", r = member(t.resp);
-    return chip((t.prio === "urgente" ? "u " : "") + (done ? "ok" : ""), `${x.choque ? "⚠ " : ""}${equipo ? esc(initials(r?.nombre)) + " · " : ""}${esc(t.titulo)}`, `data-caltask="${esc(t.id)}" title="${esc(t.titulo)}"`, `--c:${areaColor(r)}`); };
+    return chip((t.prio === "urgente" ? "u " : "") + (done ? "ok" : ""), `${x.choque ? "⚠ " : ""}${hhmm(t) ? esc(hhmm(t)) + " " : ""}${equipo ? esc(initials(r?.nombre)) + " · " : ""}${esc(t.titulo)}`, `data-caltask="${esc(t.id)}" title="${esc(t.titulo)}"`, `--c:${areaColor(r)}`); };
   let celdas = "";
   for (let i = 0; i < semanas * 7; i++) {
     const n = i - offset + 1;
@@ -1372,8 +1382,8 @@ function vCalendario(){
   const detalle = `<div class="ag-box cal-det" style="margin-top:14px"><h3 style="margin:0">${esc(DIAS_L[dow][0].toUpperCase() + DIAS_L[dow].slice(1))} ${dsel.getDate()} de ${MESES_L[dsel.getMonth()]}${!HORARIO[dow] ? ` <span class="pill rec">No laborable</span>` : ""}</h3>
     ${it.libres.length ? `<h4>No laborable</h4><ul class="mini">${it.libres.map(l => `<li>🏖 <b>${l.id ? esc(corto(member(l.id))) : "Todo el equipo"}</b> · ${esc(l.x.motivo || "Libre")} <span class="muted">(${esc(fmtCorto(l.x.desde))}${l.x.hasta !== l.x.desde ? " → " + esc(fmtCorto(l.x.hasta)) : ""})</span>${S.admin ? `<button class="del" type="button" data-libredel="${esc(l.x.id)}" aria-label="Quitar">×</button>` : ""}</li>`).join("")}</ul>` : ""}
     ${it.eventos.length ? `<h4>Eventos</h4><ul class="mini">${it.eventos.map(e => `<li><span class="pill" style="background:var(--night-bg);color:var(--night)">◆ ${esc(e.hora || "Todo el día")}</span><b>${esc(e.ev.titulo)}</b><span class="muted">${esc(e.ev.lugar || "")}</span></li>`).join("")}</ul>` : ""}
-    ${it.tareas.length ? `<h4>Tareas</h4><ul class="mini">${it.tareas.map(x => `<li data-caltask="${esc(x.t.id)}">${avHtml(member(x.t.resp))}<span>${x.t.prio === "urgente" ? "🔴 " : ""}${x.choque ? "⚠ " : ""}${esc(x.t.titulo)}</span>${quien(x.t)}<span class="pill rec">${esc((ESTADOS.find(e => e[0] === (x.t.estado || "todo")) || [])[1] || "")}</span></li>`).join("")}</ul>` : ""}
-    ${it.rut.length ? `<h4>Rutinas</h4><ul class="mini">${it.rut.map(t => `<li data-caltask="${esc(t.id)}"><span class="pill rec">↻ ${esc(freqTxt(t))}</span><span>${esc(t.titulo)}</span>${quien(t)}</li>`).join("")}</ul>` : ""}
+    ${it.tareas.length ? `<h4>Tareas</h4><ul class="mini">${it.tareas.map(x => `<li data-caltask="${esc(x.t.id)}">${avHtml(member(x.t.resp))}<span>${x.t.prio === "urgente" ? "🔴 " : ""}${x.choque ? "⚠ " : ""}${hhmm(x.t) ? `<b>${esc(hhmm(x.t))}</b> ` : ""}${esc(x.t.titulo)}</span>${quien(x.t)}<span class="pill rec">${esc((ESTADOS.find(e => e[0] === (x.t.estado || "todo")) || [])[1] || "")}</span></li>`).join("")}</ul>` : ""}
+    ${it.rut.length ? `<h4>Rutinas</h4><ul class="mini">${it.rut.map(t => `<li data-caltask="${esc(t.id)}"><span class="pill rec">↻ ${esc(freqTxt(t))}</span><span>${hhmm(t) ? `<b>${esc(hhmm(t))}</b> ` : ""}${esc(t.titulo)}</span>${quien(t)}</li>`).join("")}</ul>` : ""}
     ${!it.libres.length && !it.eventos.length && !it.tareas.length && !it.rut.length ? `<span class="muted" style="font-size:13.5px">Nada programado este día.</span>` : ""}</div>`;
   // días no laborables
   const lista = S.libres.filter(x => x.hasta >= hoyS).sort((a,b) => a.desde.localeCompare(b.desde));
