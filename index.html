@@ -492,7 +492,7 @@ function aplicar(r){
   if (r.token) { S.token = r.token; guardado.set("nexo-token", r.token); return; }
   if (r.auth === false) { S.auth = false; S.token = ""; guardado.del("nexo-token"); guardado.del("nexo-copia"); render(); return; }
   if (!r.copia) guardado.set("nexo-copia", JSON.stringify(Object.assign({}, r, {copia:true})));
-  S.auth = true; S.members = r.miembros; S.tasks = r.tareas; S.events = r.eventos; S.mat = r.mat || {};
+  S.auth = true; S.members = r.miembros; S.tasks = r.tareas; S.events = []; /* eventos desconectados del calendario/hoja de eventos de Nexo */ S.mat = r.mat || {};
   S.soy = r.yo.id; S.admin = r.yo.admin; S.veIds = r.yo.ve || []; S.notasIds = r.notas || []; S.avisos = r.avisos || []; S.pushKey = (r.push && r.push.clave) || ""; S.recs = r.recordatorios || []; S.libres = r.libres || []; S.tg = r.telegram || {activo:false, yo:false}; if (r.extra && r.extra.code) S.tgCode = r.extra; if (r.extra && r.extra.ok) S.tgCode = null; if (r.extra && r.extra.url) S.repUrl = r.extra.url; S.usuario = r.yo.usuario || ""; if (!r.copia) S.skew = r.ahora - Date.now();
   render();
   if (!r.copia) notificar();
