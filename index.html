@@ -419,7 +419,6 @@ setTimeout(function(){ if(!window.__nexoOk){ var a=document.getElementById("app"
 (() => {
 window.__nexoOk = true;
 const HORARIO = {1:[9,18],2:[9,18],3:[9,18],4:[9,18],5:[9,18],6:[9,13]};
-const PORTAL = "https:\/\/claude.ai/code/artifact/6ca3517d-9557-46f6-8d8b-7f0610260c96";
 const AREAS = {direccion:{l:"Dirección",c:"var(--c-dir)"}, conta:{l:"Contabilidad y administración",c:"var(--c-conta)"}, mkt:{l:"Marketing",c:"var(--c-mkt)"}, proy:{l:"Proyectos y arquitectura",c:"var(--c-proy)"}};
 const EMP = {business:{l:"Nexo Business",c:"var(--c-bus)"}, produce:{l:"Nexo Produce",c:"var(--c-pro)"}, ambas:{l:"Ambas",c:"var(--c-bus)"}};
 const ESTADOS = [["todo","Por hacer","var(--muted)"],["doing","En proceso","var(--c-conta)"],["review","En revisión","var(--warn-line)"],["done","Hecho","var(--ok)"]];
@@ -800,20 +799,18 @@ function evHtml(o){
   const mats = r.items.map(k => { const s = matEstado(o,k), resp = member(s.t ? s.t.resp : MAT[k].resp);
     const sub = s.s==="ok" ? "listo" : s.s==="asig" ? (resp?corto(resp):"asignado") : "falta";
     return `<button class="mat ${s.s}" type="button" data-mat="${esc(k)}" data-key="${esc(o.key)}" ${s.t?`data-task="${esc(s.t.id)}"`:""}>${s.s==="ok"?"✓":s.s==="asig"?"⏳":"○"} ${esc(MAT[k].l)} <small>· ${esc(sub)}</small></button>`; }).join("");
-  const link = ev.registro ? `<a class="btn sm" href="${esc(ev.registro)}" target="_blank" rel="noopener">Formulario de registro ↗</a>` : "";
   return `<article class="ev ${r.items.length?"st-"+r.st:""}">
     <div class="date"><small>${DIAS[d.getDay()]}</small><b>${d.getDate()}</b><span>${MESES[d.getMonth()]}</span></div>
     <div class="ev-main">
       <div class="ev-top"><h3>${esc(ev.titulo)}</h3><span class="pill">${esc(TIPOS[ev.tipo]||ev.tipo||"Evento")}</span>${pill}</div>
       <div class="where">${esc(o.hora)}${ev.lugar?` · ${esc(ev.lugar)}`:""}${ev.repite==="semanal"?" · se repite cada "+DIAS_L[ev.dia]:""}</div>
       ${mats?`<div class="mats">${mats}</div>`:""}
-      <div class="ev-acts">${r.faltan.some(k=>!matEstado(o,k).t)?`<button class="btn sm solid" type="button" data-asig="${esc(o.key)}">Asignar lo que falta</button>`:""}${link}</div>
+      <div class="ev-acts">${r.faltan.some(k=>!matEstado(o,k).t)?`<button class="btn sm solid" type="button" data-asig="${esc(o.key)}">Asignar lo que falta</button>`:""}</div>
     </div></article>`;
 }
 function vEventos(){
   const occ = ocurrencias(21);
-  return `<div class="portal-link"><div><div class="eyebrow">Eventos</div><b>Portal del Asesor Nexo</b><div class="muted" style="font-size:13.5px">Marca si el material está listo o asígnalo al equipo.</div></div><a class="btn" href="${PORTAL}" target="_blank" rel="noopener">Abrir portal ↗</a></div>
-  <section><div class="sec-head"><div><h2>Próximas 3 semanas</h2><p class="muted">Toca un material para marcarlo listo. ⏳ = ya tiene responsable.</p></div><button class="btn" id="addEvBtn" type="button">＋ Agregar evento</button></div>
+  return `<section><div class="sec-head"><div><h2>Próximas 3 semanas</h2><p class="muted">Toca un material para marcarlo listo. ⏳ = ya tiene responsable.</p></div><button class="btn" id="addEvBtn" type="button">＋ Agregar evento</button></div>
   <div id="addEvBox"></div>
   <div class="evs">${occ.map(evHtml).join("") || `<div class="empty">No hay eventos en las próximas 3 semanas.</div>`}</div></section>`;
 }
