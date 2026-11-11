@@ -391,7 +391,6 @@ setTimeout(function(){ if(!window.__nexoOk){ var a=document.getElementById("app"
   <nav class="nav" id="nav" hidden>
     <a href="#hoy" data-v="hoy">Hoy</a>
     <a href="#agenda" data-v="agenda">Agenda</a>
-    <a href="#calendario" data-v="calendario">Calendario</a>
     <a href="#tablero" data-v="tablero">Tablero</a>
     <a href="#eventos" data-v="eventos">Eventos</a>
     <a href="#tiempos" data-v="tiempos">Tiempos</a>
@@ -1400,7 +1399,7 @@ function vCalendario(){
   <div class="cal-leg"><span><i style="background:var(--accent)"></i>Tarea</span><span><i style="background:var(--night)"></i>◆ Evento (Zoom, visitas, grabaciones)</span><span><i style="background:var(--warn-line)"></i>🏖 No laborable</span><span><i style="background:var(--bad)"></i>Urgente</span><span>↻ Rutinas</span></div>
   ${detalle}${libreBox}</section>`;
 }
-function route(){ const h = location.hash.replace("#",""); S.view = ["hoy","agenda","calendario","tablero","eventos","tiempos","equipo","reportes"].includes(h) ? h : "hoy"; render(); window.scrollTo(0,0); }
+function route(){ const h = location.hash.replace("#",""); S.view = ["hoy","agenda","tablero","eventos","tiempos","equipo","reportes"].includes(h) ? h : "hoy"; render(); window.scrollTo(0,0); }
 window.addEventListener("hashchange", route);
 setInterval(() => { if (S.auth && !$("#ovRoot").innerHTML && (document.visibilityState === "visible" || permisoNotif() === "granted")) API("load").catch(()=>{}); }, 20000);
 document.addEventListener("visibilitychange", () => { if (S.auth && document.visibilityState === "visible") API("load").catch(()=>{}); });
