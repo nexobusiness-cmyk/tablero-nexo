@@ -391,8 +391,8 @@ setTimeout(function(){ if(!window.__nexoOk){ var a=document.getElementById("app"
   <nav class="nav" id="nav" hidden>
     <a href="#hoy" data-v="hoy">Hoy</a>
     <a href="#agenda" data-v="agenda">Agenda</a>
+    <a href="#calendario" data-v="calendario">Calendario</a>
     <a href="#tablero" data-v="tablero">Tablero</a>
-    <a href="#eventos" data-v="eventos">Eventos</a>
     <a href="#tiempos" data-v="tiempos">Tiempos</a>
     <a href="#reportes" data-v="reportes" id="nav-rep" hidden>Reportes</a>
     <a href="#equipo" data-v="equipo">Equipo</a>
@@ -684,15 +684,11 @@ function vHoy(){
       <button class="stat bad" data-go="tablero"><b>${venc.length}</b><span>Vencidas</span></button>
       <button class="stat warn" data-go="tablero"><b>${hoy.length}</b><span>Para hoy</span></button>
       <button class="stat night" data-go="noche"><b>${noct.length}</b><span>Dejadas fuera de horario</span></button>
-      <button class="stat ok" data-go="eventos"><b>${occ7.length}</b><span>Eventos sin material (7 días)</span></button>
     </div></section>`;
   if (PUEDE_NOTIF && permisoNotif() === "default") h += `<section class="tgbox" style="background:var(--ok-bg)"><b>🔔 Activa los avisos de Windows</b><span class="muted">Así te enteras de lo urgente aunque estés trabajando en otro programa.</span><button class="btn solid" type="button" id="wn-on" style="width:fit-content">Activar avisos</button></section>`;
   if (notasOk()) h += vNotas();
   if (noct.length) {
     h += `<section class="night-band" id="noche"><h3>☾ ${ve()?"Pendientes dejados":"Te dejaron pendiente"} fuera de horario</h3><div class="night-list">${noct.sort(orden).map(i=>{const m=member(i.t.resp);const c=i.t.creado?new Date(i.t.creado):null;const por=member(i.t.creadoPor);return `<div class="night-item" data-id="${esc(i.t.id)}">${avHtml(m)}<b>${esc(i.t.titulo)}</b><span class="muted" style="font-size:12.5px">${esc(m?.nombre||"")}${por?` · de ${esc(corto(por))}`:""}${c?` · ${DIAS[c.getDay()]} ${pad(c.getHours())}:${pad(c.getMinutes())}`:""}</span>${dueHtml(i)}</div>`}).join("")}</div></section>`;
-  }
-  if (occ7.length) {
-    h += `<section><div class="sec-head"><div><h2>Eventos que necesitan material</h2><p class="muted">Asigna lo que falta con un clic.</p></div><a class="btn" href="#eventos">Ver eventos</a></div><div class="evs">${occ7.slice(0,3).map(evHtml).join("")}</div></section>`;
   }
   const grupos = Object.keys(AREAS).map(a => [a, sorted().filter(m => (m.area||"direccion")===a && veo(m.id))]).filter(g=>g[1].length);
   h += `<section><div class="sec-head"><div><h2>${ve()?"Equipo hoy":"Tus pendientes y los del equipo"}</h2><p class="muted">Lo vencido y lo de hoy primero. Toca una tarea para abrirla.</p></div></div>`;
@@ -1399,7 +1395,7 @@ function vCalendario(){
   <div class="cal-leg"><span><i style="background:var(--accent)"></i>Tarea</span><span><i style="background:var(--night)"></i>◆ Evento (Zoom, visitas, grabaciones)</span><span><i style="background:var(--warn-line)"></i>🏖 No laborable</span><span><i style="background:var(--bad)"></i>Urgente</span><span>↻ Rutinas</span></div>
   ${detalle}${libreBox}</section>`;
 }
-function route(){ const h = location.hash.replace("#",""); S.view = ["hoy","agenda","tablero","eventos","tiempos","equipo","reportes"].includes(h) ? h : "hoy"; render(); window.scrollTo(0,0); }
+function route(){ const h = location.hash.replace("#",""); S.view = ["hoy","agenda","calendario","tablero","tiempos","equipo","reportes"].includes(h) ? h : "hoy"; render(); window.scrollTo(0,0); }
 window.addEventListener("hashchange", route);
 setInterval(() => { if (S.auth && !$("#ovRoot").innerHTML && (document.visibilityState === "visible" || permisoNotif() === "granted")) API("load").catch(()=>{}); }, 20000);
 document.addEventListener("visibilitychange", () => { if (S.auth && document.visibilityState === "visible") API("load").catch(()=>{}); });
